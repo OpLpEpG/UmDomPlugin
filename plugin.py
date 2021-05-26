@@ -115,7 +115,10 @@ class BasePlugin:
         Domoticz.Error(f'node:{node.id} state: {state} {e}')
 
     def on_emcy(self, node, entry):        
-        Domoticz.Error(f'node:{node.id} Code:{entry.code:04X} Register:{entry.register:X} Data:{entry.data.hex()} Desc: {entry.get_desc()}')
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
+        c1,c2,c3 = entry.get_key_desc()
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} group: {c1} severity: {c2} desc: {c3}')
+
 
     def on_except(self, id, node, e):        
         Domoticz.Error(f'node:{id} error: {e}')
@@ -140,7 +143,14 @@ class BasePlugin:
 
     def onCommand(self, Unit, Command, Level, Hue):
         Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level)+ "hue "+str(Hue))
-        self.udDevices[Unit].notify(Command, Level, Hue)
+        if Unit in self.udDevices:
+            try:
+                self.udDevices[Unit].notify(Command, Level, Hue)
+            except BaseException as e:
+                Domoticz.Error(f'{e}')
+        else:
+            Domoticz.Error('Softeare ERROR!!! Unit {Unit} not found in udDevices')
+
     
 
 global _plugin

@@ -45,7 +45,7 @@ class Domoticz:
 Domoticz.Log = log.info
 Domoticz.Status = log.info
 Domoticz.Debug = log.info
-Domoticz.Error = log.info
+Domoticz.Error = log.error
 
 Devices={}
 Parameters={'Mode1':'can0', 'Mode2':'/home/oleg'}
@@ -77,7 +77,6 @@ class BasePlugin:
         rpdos =  [m for m in node.rpdo.values()]   
         tpdos =  [m for m in node.tpdo.values()] 
         # Create domoticz and umdom devices if umdom devices mapped in tpdo
-
         for t in tpdos:
             for m in t:
                 try:
@@ -86,7 +85,6 @@ class BasePlugin:
                     clsUD = GetUDclass(t, m)
                     ids = clsUD.GenerateDeviceIDs(node, t, m)
                     for id in ids:
-                        ud = None                        
                         u = self._find_device_unit(id)
                         def CreateUD():
                             r = self._find_rpdo(m, rpdos)
@@ -122,7 +120,9 @@ class BasePlugin:
         Domoticz.Error(f'node:{node.id} state: {state} {e}')
 
     def on_emcy(self, node, entry):        
-        Domoticz.Error(f'node:{node.id} Code:{entry.code:04X} Register:{entry.register:X} Data:{entry.data.hex()} Desc: {entry.get_desc()}')
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
+        c1,c2,c3 = entry.get_key_desc()
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} group: {c1} severity: {c2} desc: {c3}')
 
     def on_except(self, id, node, e):        
         Domoticz.Error(f'node:{id} error: {e}')
@@ -166,7 +166,10 @@ bp.onStart()
 time.sleep(5)
 
 while True:
-    time.sleep(1)
+    time.sleep(10)
+    for u in bp.udDevices.values():
+        if u.INDEXES == (0x1026,):
+            u.notify('\t\n',None, None)
     # bp.udDevices[5].notify('Off',0,0)
     # bp.udDevices[6].notify('Off',0,0)
     # time.sleep(1)

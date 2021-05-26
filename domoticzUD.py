@@ -105,8 +105,19 @@ class IOUD(BaseUD):
         self.rpdo.transmit()
 
 class Shell(BaseUD):
-        INDEXES=(0x1026,)
-        SUBTYPE=19
+    INDEXES=(0x1026,)
+    SUBTYPE=19
+
+    def update(self, pdo, map) -> bool:
+        self.sValue += chr(map.phys)
+        return True
+
+    def notify(self, Command, Level, Hue):
+        l = list(Command)
+        for c in l:
+            self.rpdo['OS prompt.StdIn'].phys = ord(c)
+            self.rpdo.transmit()
+
 
 class BME280(BaseUD):
     #Temperature/humidity/barometer
@@ -140,13 +151,13 @@ class BME280(BaseUD):
         sub = map.subindex
         if sub == 3:
             self.temp = map.phys
-            self.filldata = self.filldata | 1
+            self.filldata |= 1
         elif sub == 4:
             self.humid = map.phys
-            self.filldata = self.filldata | 2
+            self.filldata |= 2
         elif sub == 5:     
             self.bar = map.phys
-            self.filldata = self.filldata | 4
+            self.filldata |= 4
 
         if self.filldata == self._CHMASK:
             self._update_svalue()
@@ -177,5 +188,5 @@ class BH1750(BaseUD):
     TYPE = 246  #Lux
     SUBTYPE = 1  #Lux (sValue: "float")
 
-UDs = [ADC50Hz, IOUD, BME280, AM2320, BH1750]
-# UDs = [IOUD]
+UDs = [ADC50Hz, IOUD, BME280, AM2320, BH1750, Shell]
+# UDs = [Shell]
