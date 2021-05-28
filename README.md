@@ -1,9 +1,12 @@
 # UmDomPlugin
 Domotocz UmDom Python Plugin
 
+## Orange PI PC connect mcp2515
+
+https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pinterest.com%2Fpin%2F569564684127915927%2F&psig=AOvVaw2TdqL92F7E70hB4YTKQdRM&ust=1622269643189000&source=images&cd=vfe&ved=0CAIQjRxqFwoTCIjC-sDf6_ACFQAAAAAdAAAAABAD
+
 ## Orange PI PC setup
- file spi-mcp251x.dts
- armbian ovelay
+ file spi-mcp251x.dts, armbian overlay source for compile and setup
 ```
 /dts-v1/;
 /plugin/;
@@ -70,4 +73,13 @@ user_overlays=spi-mcp251x
 overlays=uart3
 usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
 
+```
+file /etc/network/interfaces
+
+```
+...........................
+auto can0
+iface can0 can static
+    bitrate 125000
+..........................
 ```
