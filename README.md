@@ -3,6 +3,9 @@ Domotocz UmDom Python Plugin
 
 ## Orange PI PC connect mcp2515
 
+POWER:
+https://vimtut0r.com/2017/01/17/can-bus-with-raspberry-pi-howtoquickstart-mcp2515-kernel-4-4-x/
+
 1. PC0 SPI0_MOSI
 2. PC1 SPI0_MISO
 3. PC2 SPI0_CLK
