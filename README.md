@@ -9,7 +9,7 @@ Domotocz UmDom Python Plugin
 4. PC3 SPI0_CS
 5. PA2 INT
 
-![Orange PI PC pinout] (https://i.pinimg.com/originals/65/05/e0/6505e0d0c55c4101b5214d43de5e62af.png)
+![alt text](https://i.pinimg.com/originals/65/05/e0/6505e0d0c55c4101b5214d43de5e62af.png)
 
 ## Orange PI PC setup
  file spi-mcp251x.dts, armbian overlay source for compile and setup
