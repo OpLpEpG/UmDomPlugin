@@ -1,5 +1,8 @@
 # UmDomPlugin
+
 Domotocz UmDom Python Plugin
+require: CANopen for Python
+setup: standard Dmomticz python plugin
 
 <plugin key="CanOpenPlug" name="Canopen Umdom" author="oplpepg" version="1.0.0">
     <description>
