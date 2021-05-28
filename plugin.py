@@ -116,7 +116,7 @@ class BasePlugin:
 
     def on_emcy(self, node, entry):        
         Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
-        c1,c2,c3 = entry.get_key_desc()
+        c1,c2,c3 = entry.get_canopennode_desc()
         Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} group: {c1} severity: {c2} desc: {c3}')
 
 

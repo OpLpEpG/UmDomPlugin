@@ -36,7 +36,12 @@ class Domoticz:
         def Update(self, nValue=0, sValue=''):
             self.nValue = nValue
             self.sValue = sValue
-            Domoticz.Log(f'{self.Name}:{sValue}')            
+            if self.Subtype == 19:
+                print(sValue, end='')
+                # Domoticz.Log(f'{sValue}')
+            else:    
+                pass
+                # Domoticz.Log(f'{self.Name}:{sValue}')            
 
     def Debugging(dbl):
         pass
@@ -121,7 +126,7 @@ class BasePlugin:
 
     def on_emcy(self, node, entry):        
         Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
-        c1,c2,c3 = entry.get_key_desc()
+        c1,c2,c3 = entry.get_canopennode_desc()
         Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} group: {c1} severity: {c2} desc: {c3}')
 
     def on_except(self, id, node, e):        
@@ -169,7 +174,10 @@ while True:
     time.sleep(10)
     for u in bp.udDevices.values():
         if u.INDEXES == (0x1026,):
-            u.notify('\t\n',None, None)
+            u.sValue = ''
+            u.notify('i2c scan I2C_1\n',None, None)
+            
+    time.sleep(1000)
     # bp.udDevices[5].notify('Off',0,0)
     # bp.udDevices[6].notify('Off',0,0)
     # time.sleep(1)

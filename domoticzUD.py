@@ -107,10 +107,15 @@ class IOUD(BaseUD):
 class Shell(BaseUD):
     INDEXES=(0x1026,)
     SUBTYPE=19
+    # _old=0
 
     def update(self, pdo, map) -> bool:
-        self.sValue += chr(map.phys)
-        return True
+        # if self._old == 0x0A:
+        #     self.sValue = '';    
+        # c = map.phys
+        # self._old = c
+        self.sValue = chr(map.phys)
+        return True # c == 0x0A
 
     def notify(self, Command, Level, Hue):
         l = list(Command)

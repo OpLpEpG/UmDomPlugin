@@ -66,11 +66,6 @@ class MyNetwork(canopen.Network):
         self[node.id] = node
         return node
 
-class MyRemoteNode(RemoteNode):
-    def __init__(self, node_id, object_dictionary, load_od=False):
-        super().__init__(node_id, object_dictionary, load_od=load_od)
-        self.emcy = MyEmcyConsumer()
-
 class MyNodeScanner(canopen.NodeScanner):    
 
     def __init__(self, ud: UmdomNet, network = None):
@@ -83,6 +78,11 @@ class MyNodeScanner(canopen.NodeScanner):
         if node_id not in self.nodes and node_id != 0 and service in self.SERVICES:
             self.nodes.append(node_id)
             self.ud.addController(node_id)
+
+class MyRemoteNode(RemoteNode):
+    def __init__(self, node_id, object_dictionary, load_od=False):
+        super().__init__(node_id, object_dictionary, load_od=load_od)
+        self.emcy = MyEmcyConsumer()
 
 # Error code, error register, CanOpenNode Error status bits, vendor specific data
 EMCY_STRUCT = struct.Struct("<HBB4s")
@@ -193,7 +193,7 @@ class MyEmcyError(EmcyError):
         super().__init__(code, register, data, timestamp)
         self.key = key
 
-    def get_key_desc(self):
+    def get_canopennode_desc(self):
         if self.key in self.CANOPEN_NODE_EMCY:
             return self.CANOPEN_NODE_EMCY[self.key]
         return ('','','')
