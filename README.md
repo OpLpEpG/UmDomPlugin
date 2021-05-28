@@ -1,6 +1,40 @@
 # UmDomPlugin
 Domotocz UmDom Python Plugin
 
+<plugin key="CanOpenPlug" name="Canopen Umdom" author="oplpepg" version="1.0.0">
+    <description>
+        <h2>Umdom Domoticz Plugin</h2><br/>
+        доманняя автоматизация по сети CAN,
+        протоколу Canopen    
+        <h3>Features</h3>
+        <ul style="list-style-type:square">
+            <li>controllers:    Bluepill STM32F103 128KB </li>
+            <li>can:            TJA1050</li>
+            <li>OS:             Zephyr OS</li>
+            <li>OS subsistem:   shell, canopennode</li>
+        </ul>
+        <h3>Sensors</h3>
+        <ul style="list-style-type:square">
+            <li>BME280</li>
+            <li>AM2320</li>
+            <li>BH1750</li>
+            <li>ACS712 measure 50Hz current</li>
+            <li>GPIOs</li>
+        </ul>
+        <h3>Configuration</h3>
+        Canopen node scanner find node then find eds file
+        <ul style="list-style-type:square">
+            <li>node EDS file : bp%d.eds %d-canopen address</li>
+            <li>default EDS file : bp.eds</li>
+        </ul>
+        Domoticz devices generated only then find mapped dictionary items in TPDO
+    </description>
+    <params>
+        <param field="Mode1" label="CAN Interface" default="can0" width="150px" required="true"/>
+        <param field="Mode2" label="Path to EDS files" default="/home/oleg" width="150px" required="true"/>
+    </params>
+</plugin>
+
 ## Orange PI PC connect mcp2515
 
 ### Power
