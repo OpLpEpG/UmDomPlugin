@@ -3,9 +3,10 @@ Domotocz UmDom Python Plugin
 
 ## Orange PI PC connect mcp2515
 
-POWER:
+### Power
 https://vimtut0r.com/2017/01/17/can-bus-with-raspberry-pi-howtoquickstart-mcp2515-kernel-4-4-x/
 
+### connect module
 1. PC0 SPI0_MOSI
 2. PC1 SPI0_MISO
 3. PC2 SPI0_CLK
@@ -14,7 +15,7 @@ https://vimtut0r.com/2017/01/17/can-bus-with-raspberry-pi-howtoquickstart-mcp251
 
 ![alt text](https://i.pinimg.com/originals/65/05/e0/6505e0d0c55c4101b5214d43de5e62af.png)
 
-## Orange PI PC setup
+## Orange PI PC setup can
  file spi-mcp251x.dts, armbian overlay source for compile and setup
 ```
 /dts-v1/;
