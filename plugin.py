@@ -86,12 +86,12 @@ class BasePlugin:
                             d = clsUD(u, t, m, id, r)
                             self.udDevices[u] = d
                             return d
-                        if u:
+                        if u: # Device exists
                             if u in self.udDevices:
                                 ud = self.udDevices[u]
                             else: 
                                 ud = CreateUD()    
-                        else:
+                        else: # Device need create
                             u = self._get_empty_unit()
                             ud = CreateUD()    
                             Domoticz.Device(Name=ud.Name, Unit=u, Type=ud.TYPE, Subtype=ud.SUBTYPE, DeviceID=id, Switchtype=ud.ID).Create()   

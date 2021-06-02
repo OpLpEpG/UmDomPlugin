@@ -37,11 +37,14 @@ class BaseUD:
         self.Name = f'{tpdo.cob_id:X}.{map.name}' 
         self.nValue = 0
         self.sValue = ''        
-
+    # update UD device from canopen device    
+    # return: flag need to update Domoticz device 
+                        # if ud.update(maps, m):
+                        #     Devices[ud.Unit].Update(nValue=ud.nValue,sValue=ud.sValue)
     def update(self, pdo, map) -> bool:
         self.sValue = f'{map.phys}'
         return True
-
+    #write to canopen device     
     def notify(self, Command, Level, Hue):
         pass
 
