@@ -126,6 +126,7 @@ class BasePlugin:
     def onStart(self):
         self.udDevices = {}
         Domoticz.Debugging(1)
+        Domoticz.Notifier('UmDom_notify')
         # Domoticz.Trace(True)
         Domoticz.Debug("----------------------onStart called-----------------")
         self.ud = UmdomNet(Parameters['Mode1'], eds_path=Parameters['Mode2'])        
@@ -142,16 +143,39 @@ class BasePlugin:
         self.ud.stop()
 
     def onCommand(self, Unit, Command, Level, Hue):
-        Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level)+ "hue "+str(Hue))
+        Domoticz.Debug("== Command Unit: " + str(Unit) + ": Parameter '" + str(Command) + 
+        "', Level: " + str(Level)+ "hue "+str(Hue))
         if Unit in self.udDevices:
             try:
-                self.udDevices[Unit].notify(Command, Level, Hue)
+                d = self.udDevices[Unit]
+                if d.notify(Command, Level, Hue):
+                    Devices[Unit].Update(nValue=d.nValue,sValue=d.sValue)
             except BaseException as e:
                 Domoticz.Error(f'{e}')
         else:
-            Domoticz.Error('Softeare ERROR!!! Unit {Unit} not found in udDevices')
+            Domoticz.Error('Softvare ERROR!!! Unit {Unit} not found in udDevices')
 
-    
+    def onDeviceModified(self, Unit):
+        
+        if Unit in self.udDevices:
+            try:
+                d = self.udDevices[Unit]
+                if d.device_modified(Devices[Unit].nValue, Devices[Unit].sValue):
+                    Devices[Unit].Update(nValue=d.nValue,sValue=d.sValue)
+                    Domoticz.Error(f"== Device Modified: {Unit} {d.nValue} {d.sValue} ")
+            except BaseException as e:
+                Domoticz.Error(f'{e}')
+        else:
+            Domoticz.Error('Softvare ERROR!!! Unit {Unit} not found in udDevices')
+
+    # def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
+    #     Domoticz.Status("== Notification Device: " + Name + ", Subj: " + Subject + 
+    #         ",Txt:" + Text + ",Stat:" + Status + ",Prio:" + str(Priority) + ",sdn:" + Sound + ",imag:" + ImageFile)    
+
+    # def onMessage(self, Connection, Data):
+    #     Domoticz.Log("== Message called" + str(Connection) +', '+str(Data))
+
+
 
 global _plugin
 _plugin = BasePlugin()
@@ -164,9 +188,21 @@ def onStop():
     global _plugin
     _plugin.onStop()
 
+def onDeviceModified(Unit):
+    global _plugin
+    _plugin.onDeviceModified(Unit)
+
 def onCommand(Unit, Command, Level, Hue):
     global _plugin
     _plugin.onCommand(Unit, Command, Level, Hue)
+
+# def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
+#     global _plugin
+#     _plugin.onNotification(Name, Subject, Text, Status,
+#                            Priority, Sound, ImageFile)
+# def onMessage(Connection, Data):
+#     global _plugin
+#     _plugin.onMessage(Connection, Data)
 
 
 def DumpConfigToLog():

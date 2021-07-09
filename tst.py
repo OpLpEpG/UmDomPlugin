@@ -41,7 +41,9 @@ class Domoticz:
                 # Domoticz.Log(f'{sValue}')
             else:    
                 pass
-                # Domoticz.Log(f'{self.Name}:{sValue}')            
+                # Domoticz.Log(f'{self.Name}:{sValue}')   
+        def Notifier(self, data):
+            pass
 
     def Debugging(dbl):
         pass
@@ -51,6 +53,7 @@ Domoticz.Log = log.info
 Domoticz.Status = log.info
 Domoticz.Debug = log.info
 Domoticz.Error = log.error
+Domoticz.Notifier = log.info
 
 Devices={}
 Parameters={'Mode1':'can0', 'Mode2':'/home/oleg'}
@@ -96,12 +99,12 @@ class BasePlugin:
                             d = clsUD(u, t, m, id, r)
                             self.udDevices[u] = d
                             return d
-                        if u:
+                        if u: # Device exists
                             if u in self.udDevices:
                                 ud = self.udDevices[u]
                             else: 
                                 ud = CreateUD()    
-                        else:
+                        else: # Device need create
                             u = self._get_empty_unit()
                             ud = CreateUD()    
                             Domoticz.Device(Name=ud.Name, Unit=u, Type=ud.TYPE, Subtype=ud.SUBTYPE, DeviceID=id, Switchtype=ud.ID).Create()   
@@ -125,9 +128,10 @@ class BasePlugin:
         Domoticz.Error(f'node:{node.id} state: {state} {e}')
 
     def on_emcy(self, node, entry):        
-        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} Code:   {entry.code:04X}   Register:  {entry.register:X}  Data:  {entry.data.hex()} Desc: {entry.get_desc()}')
         c1,c2,c3 = entry.get_canopennode_desc()
-        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node: {node.id} group: {c1} severity: {c2} desc: {c3}')
+        Domoticz.Error(f'<<<<<<<EMERGENCY>>>>>>: node{node.id} group: {c1} severity: {c2} desc: {c3}')
+
 
     def on_except(self, id, node, e):        
         Domoticz.Error(f'node:{id} error: {e}')
@@ -135,6 +139,7 @@ class BasePlugin:
     def onStart(self):
         self.udDevices = {}
         Domoticz.Debugging(1)
+        Domoticz.Notifier('UmDom_notify')
         # Domoticz.Trace(True)
         Domoticz.Debug("----------------------onStart called-----------------")
         self.ud = UmdomNet(Parameters['Mode1'], eds_path=Parameters['Mode2'])        
@@ -152,7 +157,19 @@ class BasePlugin:
 
     def onCommand(self, Unit, Command, Level, Hue):
         Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level)+ "hue "+str(Hue))
-        self.udDevices[Unit].notify(Command, Level, Hue)
+        if Unit in self.udDevices:
+            try:
+                d = self.udDevices[Unit]
+                if d.notify(Command, Level, Hue):
+                    Devices[Unit].Update(nValue=d.nValue,sValue=d.sValue)
+            except BaseException as e:
+                Domoticz.Error(f'{e}')
+        else:
+            Domoticz.Error('Softeare ERROR!!! Unit {Unit} not found in udDevices')
+
+    def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
+        Domoticz.Status("==========Notification==========: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(
+            Priority) + "," + Sound + "," + ImageFile)    
 
 
 def DumpConfigToLog():
@@ -177,10 +194,11 @@ while True:
             u.sValue = ''
             u.notify('i2c scan I2C_1\n',None, None)
             
-    time.sleep(1000)
+    # time.sleep(10)
     # bp.udDevices[5].notify('Off',0,0)
     # bp.udDevices[6].notify('Off',0,0)
     # time.sleep(1)
     # bp.udDevices[5].notify('On',0,0)
     # bp.udDevices[6].notify('On',0,0)
+    # "192.168.0.106:8080/json.htm?type=devices&plan=21&lastupdate=0&jsoncallback=?"
 bp.onStop()

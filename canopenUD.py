@@ -196,7 +196,7 @@ class MyEmcyError(EmcyError):
     def get_canopennode_desc(self):
         if self.key in self.CANOPEN_NODE_EMCY:
             return self.CANOPEN_NODE_EMCY[self.key]
-        return ('generic','info','Key {self.key} not defined')
+        return ('generic','info',f'Key {self.key} not defined')
     
 
 class TimeSendThread(Thread): 

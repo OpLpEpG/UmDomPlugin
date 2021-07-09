@@ -3,6 +3,8 @@
     связывание 
     UmDom Devices (tpdo index subindex bit) <-> Domoticz Devices (TYPE SUBTYPE ID)
 '''
+import json
+
 def GetUDclass(pdo, map):
     for cls in UDs:
         if cls.IsClass(pdo, map):
@@ -45,8 +47,14 @@ class BaseUD:
         self.sValue = f'{map.phys}'
         return True
     #write to canopen device     
-    def notify(self, Command, Level, Hue):
-        pass
+    # return: flag need to update Domoticz device 
+    def notify(self, Command, Level, Hue) -> bool:
+        return False
+    # json api modify Domoticz device
+    # return: flag need to update Domoticz device 
+    def device_modified(self, nValue, sValue):
+        return False
+
 
 class ADC50Hz(BaseUD):
     INDEXES=(0x6400, 0x6401)
@@ -103,28 +111,88 @@ class IOUD(BaseUD):
 
     def notify(self, Command, Level, Hue):
         if self.isInput:
-            return
+            return False
         self.rpdo['GPIO pack.SetReset'].phys = self.cmds[Command]
         self.rpdo.transmit()
+        return False
 
 class Shell(BaseUD):
     INDEXES=(0x1026,)
     SUBTYPE=19
-    # _old=0
+    STATE_CHAR=0
+    STATE_STR=1
+    STATE_LINES=2
+    CMD_CLEAR_LINES=3
+
+    def __init__(self, Unit, tpdo, map, id, rpdo) -> None:
+        super().__init__(Unit, tpdo, map, id, rpdo)
+        self.state = self.STATE_STR
+        self.lines = []     # STATE_LINES
+        self.char = 0      # STATE_CHAR      
+        self._last_line= '' # STATE_STR bytearray(b'')
+        # self.value = {'cmd': self.STATE_STR,
+        #               'stat': 'resp',
+        #               'data': ''  }
+    def _create_json_svalue(self, val):
+        obj = {'cmd':self.state, 'stat':'data', 'data':val}
+        return json.dumps(obj)
+
+    def _parse_json_svalue(self, val):
+        try:
+            obj = json.loads(val)
+            if 'stat' in obj and obj['stat'] == 'get' and 'cmd' in obj:
+                return obj['cmd']
+        except:
+            return -1        
 
     def update(self, pdo, map) -> bool:
-        # if self._old == 0x0A:
-        #     self.sValue = '';    
-        # c = map.phys
-        # self._old = c
-        self.sValue = chr(map.phys)
-        return True # c == 0x0A
 
-    def notify(self, Command, Level, Hue):
-        l = list(Command)
-        for c in l:
-            self.rpdo['OS prompt.StdIn'].phys = ord(c)
-            self.rpdo.transmit()
+        self.char = chr(map.phys)
+        self._last_line += self.char #.to_bytes(1, byteorder = 'big')
+
+        if map.phys == 0x0A:
+            l = self._last_line #.decode('utf-8')
+            self.lines.append(l)
+            self._last_line = '' #.clear()
+            if self.state == self.STATE_STR:
+                self.sValue = self._create_json_svalue(l)                 
+                return True 
+            elif  self.state == self.STATE_LINES: 
+                self.sValue = self._create_json_svalue(self.lines)                 
+                return True 
+
+        if self.state == self.STATE_CHAR:
+            self.sValue = self._create_json_svalue(self.char)                 
+            return True 
+
+        return False            
+
+    def _send_char(self, ch):
+        self.rpdo['OS prompt.StdIn'].phys = ord(ch)
+        self.rpdo.transmit()
+
+    # def notify(self, Command, Level, Hue):
+        # if Command == 'get_lines':
+        #     s = {'Command': Command, 'Data': self.lines}
+        #     self.sValue = json.dumps(s)
+        #     return True
+        # else:
+    # json api modify Domoticz device
+    # return: flag need to update Domoticz device 
+    def device_modified(self, nValue, sValue):
+        state = self._parse_json_svalue(sValue)
+        if state in [self.STATE_CHAR, self.STATE_STR]:
+            self.state = state
+        elif state == self.CMD_CLEAR_LINES:
+            self.lines.clear()
+            if state == self.STATE_LINES:
+                self.sValue = self._create_json_svalue([])
+                return True
+        elif state == self.STATE_LINES:
+            self.state = state
+            self.sValue = self._create_json_svalue(self.lines)                 
+            return True 
+        return False    
 
 
 class BME280(BaseUD):
