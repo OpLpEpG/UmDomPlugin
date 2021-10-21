@@ -4,6 +4,9 @@
     UmDom Devices (tpdo index subindex bit) <-> Domoticz Devices (TYPE SUBTYPE ID)
 '''
 import json
+import time
+from threading import Timer
+
 
 def GetUDclass(pdo, map):
     for cls in UDs:
@@ -29,23 +32,23 @@ class BaseUD:
     def GenerateDeviceIDs(cls, node, pdo, map) -> list:
         return [cls.GetRootID(pdo, map)]
 
-    def __init__(self, Unit, tpdo, map, devid, rpdo) -> None:
+    def __init__(self, Unit, tpdo, map, devid, rpdo, log) -> None:
         self.Unit = Unit
         self.map = map
         self.tpdo = tpdo
         self.rpdo = rpdo
+        self.log = log
         self.ID = 0
         self.devid = devid
         self.Name = f'{tpdo.cob_id:X}.{map.name}' 
         self.nValue = 0
-        self.sValue = ''        
+        self.sValue = ''      
     # update UD device from canopen device    
-    # return: flag need to update Domoticz device 
-                        # if ud.update(maps, m):
-                        #     Devices[ud.Unit].Update(nValue=ud.nValue,sValue=ud.sValue)
-    def update(self, pdo, map) -> bool:
+                        # def event (Unit nValue sValue):
+                        #     Devices[ud.Unit].Update (nValue=ud.nValue,sValue=ud.sValue)
+    def update(self, pdo, map, event):
         self.sValue = f'{map.phys}'
-        return True
+        event(self.Unit, self.nValue, self.sValue)
     #write to canopen device     
     # return: flag need to update Domoticz device 
     def notify(self, Command, Level, Hue) -> bool:
@@ -86,8 +89,8 @@ class IOUD(BaseUD):
         o = [f'{RootID}-OUT-{i}' for i in range(0,16) if masko & (1 << i)]
         return i+o
 
-    def __init__(self, Unit, tpdo, map, id, rpdo) -> None:
-        super().__init__(Unit, tpdo, map, id, rpdo)
+    def __init__(self, Unit, tpdo, map, id, rpdo, log) -> None:
+        super().__init__(Unit, tpdo, map, id, rpdo, log)
         self.nValue = -1
         ids = id.split('-')
         # ids[0] = RootID
@@ -101,13 +104,14 @@ class IOUD(BaseUD):
         self.cmds = {'On':self.mask, 'Off':self.mask << 16}
         self.Name += ('-'+ids[1] + ids[2])
 
-    def update(self, pdo, map) -> bool:
+    def update(self, pdo, map, event):
         old = self.nValue
         if map.phys & self.mask:
             self.nValue = 1
         else:
             self.nValue = 0
-        return old != self.nValue
+        if old != self.nValue:
+            event(self.Unit, self.nValue, self.sValue)
 
     def notify(self, Command, Level, Hue):
         if self.isInput:
@@ -119,73 +123,101 @@ class IOUD(BaseUD):
 class Shell(BaseUD):
     INDEXES=(0x1026,)
     SUBTYPE=19
-    STATE_CHAR=0
+    STATE_CHAR=0 
     STATE_STR=1
     STATE_LINES=2
     CMD_CLEAR_LINES=3
 
-    def __init__(self, Unit, tpdo, map, id, rpdo) -> None:
-        super().__init__(Unit, tpdo, map, id, rpdo)
+    def __init__(self, Unit, tpdo, map, id, rpdo, log) -> None:
+        super().__init__(Unit, tpdo, map, id, rpdo, log)
         self.state = self.STATE_STR
         self.lines = []     # STATE_LINES
-        self.char = 0      # STATE_CHAR      
+        self.char = 0      # STATE_CHAR 
+        self._lastCodes = [0,0,0];     
         self._last_line= '' # STATE_STR bytearray(b'')
-        # self.value = {'cmd': self.STATE_STR,
-        #               'stat': 'resp',
-        #               'data': ''  }
+        self._time = time.time()
+
     def _create_json_svalue(self, val):
         obj = {'cmd':self.state, 'stat':'data', 'data':val}
         return json.dumps(obj)
 
     def _parse_json_svalue(self, val):
+        cmd = -1
+        data = None
         try:
             obj = json.loads(val)
-            if 'stat' in obj and obj['stat'] == 'get' and 'cmd' in obj:
-                return obj['cmd']
+            if 'stat' in obj and obj['stat'] == 'get':
+                if 'cmd' in obj:
+                    cmd = obj['cmd']
+                if 'data' in obj:
+                    data = obj['data']    
+                    
         except:
-            return -1        
+            return (-1, None)
+        return (cmd, data)
 
-    def update(self, pdo, map) -> bool:
+    def _add_last_code(self, c):
+        self._lastCodes[0] = self._lastCodes[1]
+        self._lastCodes[1] = self._lastCodes[2]    
+        self._lastCodes[2] = c
+    def _check_esc_end(self):
+        return (self._lastCodes[0] == 0x1B) and (self._lastCodes[1] == 0x5B) and (self._lastCodes[2] == 0x6D)             
 
+
+    # stdOut
+    def update(self, pdo, map, event):
+        # bad string
+        if map.phys == 0:
+            self._last_line = ''    
+            return
+
+        self._add_last_code(map.phys)
         self.char = chr(map.phys)
-        self._last_line += self.char #.to_bytes(1, byteorder = 'big')
+        self._last_line += self.char
 
-        if map.phys == 0x0A:
-            l = self._last_line #.decode('utf-8')
-            self.lines.append(l)
-            self._last_line = '' #.clear()
-            if self.state == self.STATE_STR:
-                self.sValue = self._create_json_svalue(l)                 
-                return True 
-            elif  self.state == self.STATE_LINES: 
-                self.sValue = self._create_json_svalue(self.lines)                 
-                return True 
+        def UpdateDev():
+            self.sValue = self._last_line
+            self._last_line =''
+            self.lines.append(self.sValue)
+            event(self.Unit, self.nValue, self.sValue)
 
-        if self.state == self.STATE_CHAR:
-            self.sValue = self._create_json_svalue(self.char)                 
-            return True 
+        t = time.time()
+        dt = t - self._time
+        self._time = t
+        # self.log(dt)
+        if (dt < 0.2) and (map.phys != 0x0A) and not self._check_esc_end():
+            if hasattr(self, "_timer"):
+                self._timer.cancel()
+            def cb():
+                if self._last_line != '':
+                    UpdateDev()
+            self._timer = Timer(0.1, cb)
+            self._timer.start()
+            return
+        else:    
+            UpdateDev()
 
-        return False            
 
     def _send_char(self, ch):
         self.rpdo['OS prompt.StdIn'].phys = ord(ch)
         self.rpdo.transmit()
 
-    # def notify(self, Command, Level, Hue):
-        # if Command == 'get_lines':
-        #     s = {'Command': Command, 'Data': self.lines}
-        #     self.sValue = json.dumps(s)
-        #     return True
-        # else:
     # json api modify Domoticz device
+    #  /json.htm?type=command&param=udevice&idx=37&nvalue=0&svalue={"cmd":2,"stat":"get"}&parsetrigger=false
     # return: flag need to update Domoticz device 
+    # stdIn
     def device_modified(self, nValue, sValue):
-        state = self._parse_json_svalue(sValue)
+        state, data = self._parse_json_svalue(sValue)
         if state in [self.STATE_CHAR, self.STATE_STR]:
             self.state = state
+            if state == self.STATE_CHAR:
+                self._send_char(data)
+            else:
+                for s in list(data):
+                    self._send_char(s)
         elif state == self.CMD_CLEAR_LINES:
             self.lines.clear()
-            if state == self.STATE_LINES:
+            if self.state == self.STATE_LINES:
                 self.sValue = self._create_json_svalue([])
                 return True
         elif state == self.STATE_LINES:
@@ -209,8 +241,8 @@ class BME280(BaseUD):
     SUBTYPE = 1 # THB1 - BTHR918, BTHGN129
     _CHMASK = 7
 
-    def __init__(self, Unit, tpdo, map, id, rpdo) -> None:
-        super().__init__(Unit, tpdo, map, id, rpdo)
+    def __init__(self, Unit, tpdo, map, id, rpdo, log) -> None:
+        super().__init__(Unit, tpdo, map, id, rpdo, log)
         self.filldata = 0
         # filldata 001 tmp
         # filldata 010 hum
@@ -223,7 +255,7 @@ class BME280(BaseUD):
     def _update_svalue(self):
             self.sValue = f'{self.temp};{self.humid};0;{self.bar};0'
 
-    def update(self, pdo, map) -> bool:
+    def update(self, pdo, map, event):
         sub = map.subindex
         if sub == 3:
             self.temp = map.phys
@@ -238,9 +270,7 @@ class BME280(BaseUD):
         if self.filldata == self._CHMASK:
             self._update_svalue()
             self.filldata = 0
-            return True
-        else:
-            return False    
+            event(self.Unit, self.nValue, self.sValue)
 
 class AM2320(BME280):    
     #Temp+Hum
