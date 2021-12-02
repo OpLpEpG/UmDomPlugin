@@ -96,7 +96,7 @@ class BasePlugin:
                         u = self._find_device_unit(id)
                         def CreateUD():
                             r = self._find_rpdo(m, rpdos)
-                            d = clsUD(u, t, m, id, r)
+                            d = clsUD(u, t, m, id, r, log)
                             self.udDevices[u] = d
                             return d
                         if u: # Device exists
@@ -119,10 +119,17 @@ class BasePlugin:
             if hasattr(m, 'uds'):
                 for ud in m.uds:
                     try:
-                        if ud.update(maps, m):
-                            Devices[ud.Unit].Update(nValue=ud.nValue,sValue=ud.sValue)
+                        def cb(Unit, nVal, sVal):                            
+                            Devices[Unit].Update(nValue=nVal,sValue=sVal)
+                            print(f'{datetime.fromtimestamp(maps.timestamp)} cob_id:{maps.cob_id:X} Unit {m.od.name}:{Unit} n={nVal} s={sVal} ')
+                            # tpdo_callback(maps)
+
+                        ud.update(maps, m, cb)
+                        # if ud.update(maps, m):
+                        #     Devices[ud.Unit].Update(nValue=ud.nValue,sValue=ud.sValue)
+                            
                     except BaseException as e:
-                        Domoticz.Error(f'{e}')
+                        Domoticz.Error(f'nv: {ud.nValue}, sv: {ud.sValue} ===> {e}')
                                                                             
     def on_heartbeat_error(self, node, state, e):
         Domoticz.Error(f'node:{node.id} state: {state} {e}')
@@ -156,7 +163,8 @@ class BasePlugin:
         self.ud.stop()
 
     def onCommand(self, Unit, Command, Level, Hue):
-        Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level)+ "hue "+str(Hue))
+        Domoticz.Debug("== Command Unit: " + str(Unit) + ": Parameter '" + str(Command) + 
+        "', Level: " + str(Level)+ "hue "+str(Hue))
         if Unit in self.udDevices:
             try:
                 d = self.udDevices[Unit]
@@ -165,12 +173,27 @@ class BasePlugin:
             except BaseException as e:
                 Domoticz.Error(f'{e}')
         else:
-            Domoticz.Error('Softeare ERROR!!! Unit {Unit} not found in udDevices')
+            Domoticz.Error('Softvare ERROR!!! Unit {Unit} not found in udDevices')
 
-    def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
-        Domoticz.Status("==========Notification==========: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(
-            Priority) + "," + Sound + "," + ImageFile)    
+    def onDeviceModified(self, Unit):
+        Domoticz.Debug("== Device Modified: " + str(Unit))
+        if Unit in self.udDevices:
+            try:
+                d = self.udDevices[Unit]
+                if d.device_modified(Devices[Unit].nValue, Devices[Unit].sValue):
+                    Devices[Unit].Update(nValue=d.nValue,sValue=d.sValue)
+                    Domoticz.Debug(f"== Device Modified: {Unit} {d.nValue} {d.sValue} ")
+            except BaseException as e:
+                Domoticz.Error(f'{e}')
+        else:
+            Domoticz.Error('Softvare ERROR!!! Unit {Unit} not found in udDevices')
 
+    # def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
+    #     Domoticz.Status("== Notification Device: " + Name + ", Subj: " + Subject + 
+    #         ",Txt:" + Text + ",Stat:" + Status + ",Prio:" + str(Priority) + ",sdn:" + Sound + ",imag:" + ImageFile)    
+
+    # def onMessage(self, Connection, Data):
+    #     Domoticz.Log("== Message called" + str(Connection) +', '+str(Data))
 
 def DumpConfigToLog():
     pass

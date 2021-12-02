@@ -47,8 +47,10 @@ class BaseUD:
                         # def event (Unit nValue sValue):
                         #     Devices[ud.Unit].Update (nValue=ud.nValue,sValue=ud.sValue)
     def update(self, pdo, map, event):
-        self.sValue = f'{map.phys}'
-        event(self.Unit, self.nValue, self.sValue)
+        sv = f'{map.phys}'
+        if sv != self.sValue:
+            self.sValue = sv
+            event(self.Unit, self.nValue, self.sValue)
     #write to canopen device     
     # return: flag need to update Domoticz device 
     def notify(self, Command, Level, Hue) -> bool:
@@ -130,15 +132,15 @@ class Shell(BaseUD):
 
     def __init__(self, Unit, tpdo, map, id, rpdo, log) -> None:
         super().__init__(Unit, tpdo, map, id, rpdo, log)
-        self.state = self.STATE_STR
+        # self.state = self.STATE_STR
         self.lines = []     # STATE_LINES
         self.char = 0      # STATE_CHAR 
         self._lastCodes = [0,0,0];     
         self._last_line= '' # STATE_STR bytearray(b'')
         self._time = time.time()
 
-    def _create_json_svalue(self, val):
-        obj = {'cmd':self.state, 'stat':'data', 'data':val}
+    def _create_json_svalue(self, cmd, val):
+        obj = {'cmd':cmd, 'stat':'data', 'data':val}
         return json.dumps(obj)
 
     def _parse_json_svalue(self, val):
@@ -207,23 +209,27 @@ class Shell(BaseUD):
     # return: flag need to update Domoticz device 
     # stdIn
     def device_modified(self, nValue, sValue):
-        state, data = self._parse_json_svalue(sValue)
-        if state in [self.STATE_CHAR, self.STATE_STR]:
-            self.state = state
-            if state == self.STATE_CHAR:
-                self._send_char(data)
-            else:
-                for s in list(data):
-                    self._send_char(s)
-        elif state == self.CMD_CLEAR_LINES:
+
+        cmd, data = self._parse_json_svalue(sValue)
+
+        if cmd == self.STATE_CHAR:
+            self._send_char(data)
+
+        elif cmd == self.STATE_STR:
+            for s in list(data):
+                self._send_char(s)
+                time.sleep(0.02)
+                    
+        elif cmd == self.CMD_CLEAR_LINES:
             self.lines.clear()
-            if self.state == self.STATE_LINES:
-                self.sValue = self._create_json_svalue([])
-                return True
-        elif state == self.STATE_LINES:
-            self.state = state
-            self.sValue = self._create_json_svalue(self.lines)                 
+            self._last_line =''
+            self.sValue = self._create_json_svalue(self.CMD_CLEAR_LINES, [])
+            return True
+
+        elif cmd == self.STATE_LINES:
+            self.sValue = self._create_json_svalue(self.STATE_LINES, self.lines)                 
             return True 
+
         return False    
 
 
@@ -268,9 +274,11 @@ class BME280(BaseUD):
             self.filldata |= 4
 
         if self.filldata == self._CHMASK:
+            old = self.sValue
             self._update_svalue()
             self.filldata = 0
-            event(self.Unit, self.nValue, self.sValue)
+            if old != self.sValue:
+                event(self.Unit, self.nValue, self.sValue)
 
 class AM2320(BME280):    
     #Temp+Hum
